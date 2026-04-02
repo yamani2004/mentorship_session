@@ -53,6 +53,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await supabase.auth.signOut();
     setUser(null);
     setProfile(null);
+    //Added 02-04-2026 to ensure user is redirected to login page after sign out
+    window.location.href = '/auth/login'; // ✅ force redirect
   };
 
   return (

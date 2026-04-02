@@ -33,20 +33,36 @@ export default function VideoPanel({
   useEffect(() => {
     if (localVideoRef.current && localStream) {
       localVideoRef.current.srcObject = localStream;
+      localVideoRef.current.play().catch(() => {});
     }
   }, [localStream]);
 
+
+  //ADDED ON 02-04-2026 to handle remote stream and force play for better compatibility
+
   useEffect(() => {
-    if (remoteVideoRef.current && remoteStream) {
-      remoteVideoRef.current.srcObject = remoteStream;
-    }
-  }, [remoteStream]);
+  if (remoteVideoRef.current && remoteStream) {
+    remoteVideoRef.current.srcObject = remoteStream;
+
+    // 🔥 FORCE PLAY (this fixes black screen)
+    remoteVideoRef.current
+      .play()
+      .then(() => console.log('✅ Remote video playing'))
+      .catch((err) => console.error('❌ Play failed:', err));
+  }
+  console.log("REMOTE STREAM:", remoteStream);
+
+  remoteStream?.getTracks().forEach(t =>
+  console.log("REMOTE TRACK:", t.kind, t.readyState)
+);
+
+}, [remoteStream]);
 
   return (
     <div className="flex flex-col h-full bg-gray-950">
       {/* Remote video (main) */}
       <div className="relative flex-1 bg-gray-900 flex items-center justify-center">
-        {remoteStream ? (
+        {remoteStream && remoteStream.getVideoTracks().length > 0 ? (
           <video
             ref={remoteVideoRef}
             autoPlay

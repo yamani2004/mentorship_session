@@ -7,7 +7,12 @@ import { api } from '@/lib/api';
 import type { Session } from '@/types';
 
 export default function DashboardPage() {
-  const { profile, signOut, loading } = useAuth();
+  //Earlier updated on 02-04-2025
+  //const { profile, signOut, loading } = useAuth();
+
+  //Updated version on 02-04-2026 with better auth handling and session management
+  const { user, profile, signOut, loading } = useAuth();
+
   const router = useRouter();
 
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -24,9 +29,15 @@ export default function DashboardPage() {
 
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    if (!loading && !profile) router.replace('/auth/onboarding');
-  }, [loading, profile, router]);
+useEffect(() => {
+  if (loading) return;
+
+  if (!user) {
+    router.replace('/auth/login');
+  } else if (!profile) {
+    router.replace('/auth/onboarding');
+  }
+}, [user, profile, loading]);
 
   useEffect(() => {
     api.get('/api/sessions')

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { useWebRTC } from '@/hooks/useWebRTC';
@@ -10,6 +10,8 @@ import SharedEditor from '@/components/editor/SharedEditor';
 import VideoPanel from '@/components/video/VideoPanel';
 import ChatPanel from '@/components/chat/ChatPanel';
 import type { Session, Message } from '@/types';
+
+// ✅ moved outside component to ensure single instance across renders
 
 export default function SessionPage() {
   const { id: sessionId } = useParams<{ id: string }>();
@@ -24,7 +26,20 @@ export default function SessionPage() {
   const [pageLoading, setPageLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'video' | 'chat'>('video');
 
-  const socket = getSocket();
+  
+  //Earlier version without proper auth handling and socket management
+  //const socket = getSocket();
+
+  //Updated version on 02-04-2026 with better auth handling and socket management
+  const socketRef = useRef<ReturnType<typeof getSocket> | null>(null);
+
+  if (!socketRef.current) {
+  socketRef.current = getSocket();
+  }
+
+  const socket = socketRef.current;
+
+
   const isMentor = profile?.role === 'mentor';
 
   const { localStream, remoteStream, isMuted, isCameraOff, callActive, startCall, toggleMute, toggleCamera, stopCall } =
@@ -51,30 +66,49 @@ export default function SessionPage() {
 
   // Connect socket
   useEffect(() => {
-    if (!user || !profile || pageLoading) return;
+  if (!user || !profile || pageLoading) return;
 
+  // ✅ connect only once
+  if (!socket.connected) {
     socket.connect();
-    socket.emit('join_session', {
-      sessionId,
-      userId: user.id,
-      userName: profile.full_name,
-    });
+    console.log('🔌 Socket connecting...');
+  }
 
-    socket.on('partner_joined', ({ userName }: { userName: string }) => {
-      setPartnerStatus('connected');
-      console.log(`${userName} joined`);
-    });
+  // ✅ join only once
+  socket.emit('join_session', {
+    sessionId,
+    userId: user.id,
+    userName: profile.full_name,
+  });
 
-    socket.on('partner_left', () => setPartnerStatus('left'));
-    socket.on('language_update', ({ language: lang }: { language: string }) => setLanguage(lang));
+  // listeners
+  const handleJoin = ({ userName }: { userName: string }) => {
+    setPartnerStatus('connected');
+    console.log(`${userName} joined`);
+  };
 
-    return () => {
-      socket.off('partner_joined');
-      socket.off('partner_left');
-      socket.off('language_update');
-      disconnectSocket();
-    };
-  }, [user, profile, sessionId, pageLoading, socket]);
+  const handleLeft = () => setPartnerStatus('left');
+
+  const handleLanguage = ({ language }: { language: string }) => {
+    setLanguage(language);
+  };
+
+  socket.on('partner_joined', handleJoin);
+  socket.on('partner_left', handleLeft);
+  socket.on('language_update', handleLanguage);
+  socket.on('session_ready', () => setPartnerStatus('connected')); // ← ADD THIS
+
+  return () => {
+    socket.off('partner_joined', handleJoin);
+    socket.off('partner_left', handleLeft);
+    socket.off('language_update', handleLanguage);
+    socket.off('session_ready'); // ← ADD THIS
+
+    // ❗ DO NOT always disconnect (important)
+    // only disconnect if you are leaving page permanently
+    // disconnectSocket();
+  };
+}, [pageLoading]); // ✅ ONLY THIS
 
   const endSession = useCallback(async () => {
     await api.patch(`/api/sessions/${sessionId}/end`);

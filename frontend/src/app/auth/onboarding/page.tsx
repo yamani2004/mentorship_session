@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import type { UserRole } from '@/types';
+import { useEffect } from 'react';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -11,6 +13,17 @@ export default function OnboardingPage() {
   const [role, setRole] = useState<UserRole>('student');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // ✅ Ensure only logged in users can access this page
+  //ADDED ON 2026-04-02
+
+  const { user } = useAuth();
+
+useEffect(() => {
+  if (!user) {
+    router.replace('/auth/login');
+  }
+}, [user, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

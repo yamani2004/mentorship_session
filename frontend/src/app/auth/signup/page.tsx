@@ -13,20 +13,28 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false);
 
   const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
+  e.preventDefault();
+  setLoading(true);
+  setError('');
 
-    const { error } = await supabase.auth.signUp({ email, password });
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+  });
 
-    if (error) {
-      setError(error.message);
-      setLoading(false);
-      return;
-    }
+  if (error) {
+    setError(error.message);
+    setLoading(false);
+    return;
+  }
 
-    // After signup, go to onboarding to set name + role
+  // ✅ Check if user is actually logged in
+  if (data.session) {
     router.push('/auth/onboarding');
+  } else {
+    // ✅ Email confirmation case
+    router.push('/auth/login');
+  }
   };
 
   return (

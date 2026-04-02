@@ -28,11 +28,20 @@ function setupSocketHandlers(io) {
       socket.sessionId = sessionId;
       socket.userId = userId;
       socket.userName = userName;
+      
+      //Earlier Version Updated on 02-04-2026
+      // if (!sessionMembers[sessionId]) {
+      //   sessionMembers[sessionId] = [];
+      // }
+      // sessionMembers[sessionId].push(socket.id);
 
+      //Added on 02-04-2026 to use Set instead of array for sessionMembers to avoid duplicates and simplify management
       if (!sessionMembers[sessionId]) {
-        sessionMembers[sessionId] = [];
+          sessionMembers[sessionId] = new Set();
       }
-      sessionMembers[sessionId].push(socket.id);
+       sessionMembers[sessionId].add(socket.id);
+
+       console.log(`👥 Members:`, sessionMembers[sessionId].size);
 
       console.log(`👤 ${userName} joined session ${sessionId}`);
 
@@ -40,7 +49,8 @@ function setupSocketHandlers(io) {
       socket.to(sessionId).emit('partner_joined', { userId, userName });
 
       // If two people are in room, signal ready for WebRTC
-      if (sessionMembers[sessionId].length === 2) {
+      if (sessionMembers[sessionId].size === 2) {
+        console.log(`👥 Members:`, sessionMembers[sessionId].size);
         io.to(sessionId).emit('session_ready');
       }
     });
@@ -95,12 +105,21 @@ function setupSocketHandlers(io) {
       if (sessionId) {
         // Remove from tracking
         if (sessionMembers[sessionId]) {
-          sessionMembers[sessionId] = sessionMembers[sessionId].filter(
-            (id) => id !== socket.id
-          );
-          if (sessionMembers[sessionId].length === 0) {
-            delete sessionMembers[sessionId];
-          }
+          //Earlier Version Updated on 02-04-2026
+          // sessionMembers[sessionId] = sessionMembers[sessionId].filter(
+          //   (id) => id !== socket.id
+          // );
+          // if (sessionMembers[sessionId].length === 0) {
+          //   delete sessionMembers[sessionId];
+          // }
+
+
+          //Added on 02-04-2026 to use Set for sessionMembers
+
+          sessionMembers[sessionId].delete(socket.id);
+            if (sessionMembers[sessionId].size === 0) {
+                delete sessionMembers[sessionId];
+            }
         }
 
         // Notify the other participant
